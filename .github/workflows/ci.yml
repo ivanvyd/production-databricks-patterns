@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+  schedule:
+    # Drift check. Without this trigger the drift job below never runs.
+    - cron: "0 6 * * *"
+
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - run: pip install -r requirements-dev.txt
+      # No cluster. Should finish in under a minute; a suite slower than that
+      # stops being run.
+      - run: pytest tests/unit -m "not integration"
+
+  bundle:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: databricks/setup-cli@main
+      # Cheapest quality gate available: catches a misspelled resource type, an
+      # unresolved variable, and a grant to a principal that does not exist,
+      # before anything is created.
+      # validate resolves against the workspace, so every target needs credentials.
+      - run: databricks bundle validate -t staging
+        env:
+          DATABRICKS_CLIENT_ID: ${{ secrets.DATABRICKS_CLIENT_ID }}
+          DATABRICKS_CLIENT_SECRET: ${{ secrets.DATABRICKS_CLIENT_SECRET }}
+      - run: databricks bundle validate -t prod
+        env:
+          DATABRICKS_CLIENT_ID: ${{ secrets.DATABRICKS_CLIENT_ID }}
+          DATABRICKS_CLIENT_SECRET: ${{ secrets.DATABRICKS_CLIENT_SECRET }}
+
+  drift:
+    # `plan` diffs against deployed state. `validate` does not - it parses and
+    # resolves. Alert on a non-empty plan.
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: databricks/setup-cli@main
+      - run: databricks bundle plan -t prod

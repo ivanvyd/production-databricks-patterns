@@ -1,0 +1,4 @@
+pytest>=8.0
+# pyspark.pipelines ships in Spark 4.1. The unit tests here do not import it,
+# but anything exercising the pipeline code needs 4.1 or later.
+pyspark>=4.1

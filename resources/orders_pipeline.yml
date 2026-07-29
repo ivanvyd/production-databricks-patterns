@@ -1,0 +1,37 @@
+resources:
+  pipelines:
+    orders_cdc:
+      name: orders-cdc
+      catalog: ${var.catalog}
+      target: silver
+      libraries:
+        - file:
+            path: ../src/pipelines/orders_cdc.py
+      configuration:
+        source_schema: ${var.source_schema}
+
+  jobs:
+    orders_cdc_job:
+      name: orders-cdc-job
+      tasks:
+        - task_key: run_pipeline
+          pipeline_task:
+            pipeline_id: ${resources.pipelines.orders_cdc.id}
+      email_notifications:
+        on_failure:
+          - ${var.notifications_email}
+      schedule:
+        quartz_cron_expression: "0 0 * * * ?"
+        timezone_id: UTC
+
+# Allowed top-level levels are CAN_VIEW, CAN_MANAGE and CAN_RUN. Job-specific
+# levels such as CAN_MANAGE_RUN belong under the job resource, not here: a
+# top-level block applies to every resource in the bundle, including pipelines
+# that have no such level, and `bundle validate` rejects it.
+# Grant to GROUPS, never to individuals. A bundle that names a person is a
+# bundle that breaks the week they change teams.
+permissions:
+  - level: CAN_VIEW
+    group_name: data-analysts
+  - level: CAN_RUN
+    group_name: data-engineers

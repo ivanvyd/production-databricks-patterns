@@ -1,0 +1,4 @@
+[tool.pytest.ini_options]
+markers = [
+    "integration: runs against a real workspace; excluded from the per-commit suite",
+]

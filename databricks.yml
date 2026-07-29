@@ -1,0 +1,52 @@
+# Declarative Automation Bundle (formerly Databricks Asset Bundles).
+# Renamed 2026-03-16; the CLI command is still `databricks bundle`.
+bundle:
+  name: production-databricks-patterns
+
+include:
+  - resources/*.yml
+
+variables:
+  catalog:
+    description: Unity Catalog catalog for this environment
+  source_schema:
+    description: Schema holding the raw CDC feed
+    default: raw
+  notifications_email:
+    description: Where failure notifications are sent
+
+targets:
+  # `mode: development` prefixes resource names with your short name, adds a `dev`
+  # tag, PAUSES all schedules, and marks pipelines development: true.
+  # The paused schedule is the behaviour that prevents your personal copy of an
+  # hourly job running against production for a weekend.
+  dev:
+    mode: development
+    default: true
+    variables:
+      catalog: dev_analytics
+      notifications_email: you@example.com
+
+  staging:
+    mode: production
+    workspace:
+      host: https://<staging-workspace-url>
+    variables:
+      catalog: staging_analytics
+      notifications_email: data-alerts@example.com
+    run_as:
+      service_principal_name: sp-data-platform-staging
+
+  # `mode: production` additionally VALIDATES that every pipeline is
+  # development: false. It fails the deploy rather than fixing the setting.
+  # It also requires non-user-specific artifact_path / file_path / root_path /
+  # state_path, which is why a bundle that deploys for you can fail in CI.
+  prod:
+    mode: production
+    workspace:
+      host: https://<production-workspace-url>
+    variables:
+      catalog: prod_analytics
+      notifications_email: data-oncall@example.com
+    run_as:
+      service_principal_name: sp-data-platform-prod
