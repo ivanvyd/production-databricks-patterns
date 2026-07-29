@@ -6,7 +6,7 @@ each one proves. Companion to the *Treating Databricks Projects as Software Prod
 ## 0. The change
 
 Suppose the reliability contract changes: amounts must now be stored in integer cents. The edit
-lands in one place, `src/transforms.py`, because that is the point of the structure — the logic is
+lands in one place, `src/transforms.py`, because that is the point of the structure: the logic is
 importable and the pipeline file is a thin entry point.
 
 ## 1. Prove it locally, without a cluster
@@ -27,7 +27,7 @@ databricks bundle validate -t dev
 ```
 
 This catches a misspelled resource type or an unresolved variable. It checks configuration, not
-deployed state — that distinction matters later.
+deployed state, and that distinction matters later.
 
 ## 3. Deploy to dev, which is deliberately not like prod
 
