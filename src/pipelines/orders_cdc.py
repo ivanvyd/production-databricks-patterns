@@ -20,7 +20,9 @@ def orders_raw():
 @dp.temporary_view
 @dp.expect_or_fail("sequence_not_null", "updated_at IS NOT NULL AND source_lsn IS NOT NULL")
 @dp.expect_or_drop("tenant_present", "tenant_id IS NOT NULL")
-@dp.expect("amount_non_negative", "amount >= 0")
+# `amount` is gone by the time this evaluates: normalise_orders derives
+# `amount_cents` and drops it.
+@dp.expect("amount_non_negative", "amount_cents >= 0")
 def orders_clean():
     return normalise_orders(spark.readStream.table("orders_raw"))
 

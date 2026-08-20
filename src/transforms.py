@@ -17,7 +17,11 @@ def normalise_orders(df: DataFrame) -> DataFrame:
     return (
         df.withColumn("order_id", F.col("order_id").cast("string"))
         .withColumn("tenant_id", F.col("tenant_id").cast("string"))
-        .withColumn("amount_cents", (F.col("amount") * 100).cast("bigint"))
+        # Via decimal, not off the double: 19.99 * 100 is 1998.9999999999998,
+        # and the bigint cast truncates that to 1998.
+        .withColumn(
+            "amount_cents", (F.col("amount").cast("decimal(18,2)") * 100).cast("bigint")
+        )
         .drop("amount")
     )
 

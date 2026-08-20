@@ -1,4 +1,7 @@
 [tool.pytest.ini_options]
+# pytest puts the test file's own directory on sys.path, not the repository
+# root, so `from src.transforms import ...` fails without this.
+pythonpath = ["."]
 markers = [
     "integration: runs against a real workspace; excluded from the per-commit suite",
 ]
