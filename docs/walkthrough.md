@@ -1,7 +1,8 @@
 # The promotion path, end to end
 
 A written walkthrough of one change moving from a laptop to production, with the commands and what
-each one proves. Companion to the *Treating Databricks Projects as Software Products* article.
+each one proves. Companion to [Treating Databricks Projects as Software
+Products](https://compiletheory.com/articles/databricks-projects-software-products).
 
 ## 0. The change
 
@@ -42,8 +43,9 @@ result.
 
 ## 4. Open the pull request
 
-CI runs the unit tests and `bundle validate` for staging and prod. A reviewer reads a diff of plain
-Python, not a diff of serialised notebook cells.
+CI runs the unit tests, and `bundle validate` for staging and prod once the workspace credentials are
+configured as repository secrets. A reviewer reads a diff of plain Python, not a diff of serialised
+notebook cells.
 
 ## 5. See what the deploy would do before it does it
 
@@ -69,11 +71,14 @@ that deploys from a laptop but fails here is the check working, not failing.
 ## 7. Leave evidence
 
 Record in `docs/evidence/` per release: commit, test results, the plan file, who approved, deploy
-timestamp and identity, smoke outcome. Six months later this is how you find which release
-introduced the wrong number without reconstructing history from memory.
+timestamp and identity, smoke outcome. `docs/evidence/TEMPLATE.md` is the shape. Six months later
+this is how you find which release introduced the wrong number without reconstructing history from
+memory.
 
 ## 8. Watch for drift
 
-The scheduled CI job runs `databricks bundle plan -t prod` daily. A non-empty plan means someone
-changed production by hand; the fix is to bring the change back into the repository, not to revert
-someone's emergency.
+The scheduled CI job runs `databricks bundle plan -t prod` daily, once the workspace credentials are
+configured. A non-empty plan means someone changed production by hand; the fix is to bring the change
+back into the repository, not to revert someone's emergency. The job prints the plan rather than
+failing on it - `plan` has no `--detailed-exitcode`, so turning drift into an alert means reading
+`-o json` and gating on the actions it lists.

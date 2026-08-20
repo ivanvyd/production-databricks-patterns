@@ -1,4 +1,5 @@
 pytest>=8.0
-# pyspark.pipelines ships in Spark 4.1. The unit tests here do not import it,
-# but anything exercising the pipeline code needs 4.1 or later.
+# pyspark.pipelines ships in Spark 4.1, and no unit test here imports it. Spark
+# alone is not enough to run the pipeline file: expectations and SCD type 2 in
+# create_auto_cdc_flow are Databricks extensions, absent from the OSS module.
 pyspark>=4.1
