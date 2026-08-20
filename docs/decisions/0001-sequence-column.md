@@ -6,7 +6,9 @@ Date: 2026-08-10
 ## Context
 
 `SEQUENCE BY` decides which version of a record wins. Four candidates were
-available, each encoding a different claim about what "later" means.
+available, each encoding a different claim about what "later" means: our own
+ingestion timestamp, the source's `updated_at`, the source's `source_lsn`, and a
+struct combining the last two.
 
 ## Decision
 
