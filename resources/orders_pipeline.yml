@@ -3,7 +3,9 @@ resources:
     orders_cdc:
       name: orders-cdc
       catalog: ${var.catalog}
-      target: silver
+      # `schema`, not the deprecated `target`: setting `target` puts the pipeline
+      # in legacy publishing mode, which cannot write outside a single schema.
+      schema: silver
       libraries:
         - file:
             path: ../src/pipelines/orders_cdc.py
