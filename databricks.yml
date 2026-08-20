@@ -34,13 +34,17 @@ targets:
     variables:
       catalog: staging_analytics
       notifications_email: data-alerts@example.com
+    # Takes the service principal's APPLICATION ID despite the key name. A
+    # display name passes `bundle validate` and then fails at deploy.
     run_as:
-      service_principal_name: sp-data-platform-staging
+      service_principal_name: <staging-service-principal-application-id>
 
   # `mode: production` additionally VALIDATES that every pipeline is
   # development: false. It fails the deploy rather than fixing the setting.
-  # It also requires non-user-specific artifact_path / file_path / root_path /
-  # state_path, which is why a bundle that deploys for you can fail in CI.
+  # Targets that do NOT run as a service principal get a second set of checks -
+  # non-user-specific artifact_path / file_path / root_path / state_path, plus
+  # run_as and permissions set - which is why a bundle that deploys from a laptop
+  # can fail in CI. Both targets here use a service principal.
   prod:
     mode: production
     workspace:
@@ -49,4 +53,4 @@ targets:
       catalog: prod_analytics
       notifications_email: data-oncall@example.com
     run_as:
-      service_principal_name: sp-data-platform-prod
+      service_principal_name: <production-service-principal-application-id>
