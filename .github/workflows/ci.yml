@@ -2,47 +2,91 @@ name: CI
 
 on:
   pull_request:
+  # Branch-filtered so a pull request from a branch in this repository runs the
+  # suite once, not twice.
   push:
+    branches: [main]
   schedule:
     # Drift check. Without this trigger the drift job below never runs.
+    # GitHub disables scheduled workflows on a public repository after 60 days
+    # with no activity, so a quiet template stops watching for drift silently.
     - cron: "0 6 * * *"
+
+permissions:
+  contents: read
 
 jobs:
   unit:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with: { python-version: "3.11" }
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
       - run: pip install -r requirements-dev.txt
       # No cluster. Should finish in under a minute; a suite slower than that
       # stops being run.
       - run: pytest tests/unit -m "not integration"
 
-  bundle:
+  # `bundle validate` and `bundle plan` both authenticate before they resolve
+  # anything, so neither runs without credentials, and a pull request from a
+  # fork is never given secrets. Checking once here lets the two jobs below skip
+  # rather than fail nightly. `secrets` is not readable from a job-level `if`,
+  # but `needs` is.
+  preflight:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      workspace: ${{ steps.check.outputs.workspace }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: databricks/setup-cli@main
+      - id: check
+        env:
+          CLIENT_ID: ${{ secrets.DATABRICKS_CLIENT_ID }}
+          CLIENT_SECRET: ${{ secrets.DATABRICKS_CLIENT_SECRET }}
+        run: |
+          if [ -n "$CLIENT_ID" ] && [ -n "$CLIENT_SECRET" ]; then
+            echo "workspace=yes" >> "$GITHUB_OUTPUT"
+          else
+            echo "workspace=no" >> "$GITHUB_OUTPUT"
+            echo "::notice::DATABRICKS_CLIENT_ID / DATABRICKS_CLIENT_SECRET are not set, so bundle validation and drift detection are skipped. See the CI section of README.md."
+          fi
+
+  bundle:
+    needs: preflight
+    if: needs.preflight.outputs.workspace == 'yes'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      DATABRICKS_CLIENT_ID: ${{ secrets.DATABRICKS_CLIENT_ID }}
+      DATABRICKS_CLIENT_SECRET: ${{ secrets.DATABRICKS_CLIENT_SECRET }}
+    steps:
+      - uses: actions/checkout@v7
+      # Pinned to a commit: `@main` runs whatever was last pushed to a branch
+      # somebody else controls, and this action publishes no moving `v1` tag.
+      - uses: databricks/setup-cli@903f2679e2ca728decb4a78c74d57570f8e8d2e5 # v1.12.1
       # Cheapest quality gate available: catches a misspelled resource type, an
       # unresolved variable, and a grant to a principal that does not exist,
       # before anything is created.
       # validate resolves against the workspace, so every target needs credentials.
       - run: databricks bundle validate -t staging
-        env:
-          DATABRICKS_CLIENT_ID: ${{ secrets.DATABRICKS_CLIENT_ID }}
-          DATABRICKS_CLIENT_SECRET: ${{ secrets.DATABRICKS_CLIENT_SECRET }}
       - run: databricks bundle validate -t prod
-        env:
-          DATABRICKS_CLIENT_ID: ${{ secrets.DATABRICKS_CLIENT_ID }}
-          DATABRICKS_CLIENT_SECRET: ${{ secrets.DATABRICKS_CLIENT_SECRET }}
 
   drift:
-    # `plan` diffs against deployed state. `validate` does not - it parses and
-    # resolves. Alert on a non-empty plan.
-    if: github.event_name == 'schedule'
+    # `plan` diffs against deployed state; `validate` only parses and resolves.
+    # A non-empty plan means someone changed production by hand. This job prints
+    # the plan rather than failing on one: `plan` has no `--detailed-exitcode`,
+    # so alerting means reading `-o json` and gating on the actions it lists.
+    needs: preflight
+    if: github.event_name == 'schedule' && needs.preflight.outputs.workspace == 'yes'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      DATABRICKS_CLIENT_ID: ${{ secrets.DATABRICKS_CLIENT_ID }}
+      DATABRICKS_CLIENT_SECRET: ${{ secrets.DATABRICKS_CLIENT_SECRET }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: databricks/setup-cli@main
+      - uses: actions/checkout@v7
+      - uses: databricks/setup-cli@903f2679e2ca728decb4a78c74d57570f8e8d2e5 # v1.12.1
       - run: databricks bundle plan -t prod
