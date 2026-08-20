@@ -8,7 +8,7 @@ quarter.
 
 from __future__ import annotations
 
-from pyspark.sql import DataFrame
+from pyspark.sql import Column, DataFrame
 from pyspark.sql import functions as F
 
 
@@ -26,7 +26,7 @@ def normalise_orders(df: DataFrame) -> DataFrame:
     )
 
 
-def sequence_expr() -> F.Column:
+def sequence_expr() -> Column:
     """The ordering claim, in one place.
 
     A struct so that ties on `updated_at` fall through to `source_lsn` instead of
